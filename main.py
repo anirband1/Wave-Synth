@@ -1,12 +1,11 @@
 import tkinter as tk
-from PIL import Image, ImageTk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from App.applib.Core.wave_class import Wave
 from App.applib.Core.constants import *
 from App.applib.Core.default_waves import make_default_wave
 from App.applib.Core.audio import play_audio
-import App.applib.Core.harmonictest as ht
+import App.applib.Core.waveform as wv
 
 from App.applib.utils import Grapher, messenger, wav_saver, luminosity
 
@@ -75,39 +74,39 @@ class DropDown:
 
 
     def __create_list(self):
-        if self.user_wave_names is not None:
+        if self.user_wave_names is None:
+            return
+        def __normalize_length(wave_list):
+            new_wave_list = []
+            for wave in wave_list:
+                if len(wave) < 19:
+                    new_wave_list.append(wave + " "* (19 - len(wave)))
+                else:
+                    new_wave_list.append(wave[:19])
 
-            def __normalize_length(wave_list):
-                new_wave_list = []
-                for wave in wave_list:
-                    if len(wave) < 19:
-                        new_wave_list.append(wave + " "* (19 - len(wave)))
-                    else:
-                        new_wave_list.append(wave[:19])
-                
-                return new_wave_list
-            
-
-            
-            self.list_frame = tk.Frame(root)
-
-            # * IMPORTANT
-            def __change_label(wave_name):
-                self.selected_wave = wave_name.strip()
-                self.t_label['text'] = self.selected_wave
-                self.__destroy_list()
-                self.drop_state = not self.drop_state
-
-                everything_from_list(focus_wave.return_list(self.selected_wave)) # !!!!!!!!!!!SDAKJNSKJDCNd
+            return new_wave_list
 
 
 
-            unindent_x =  self.dd_button.winfo_x() + self.pos_x - 179
-            unindent_y =  self.dd_button.winfo_y() + self.pos_y + 24
-            for i, wave in enumerate(__normalize_length(self.user_wave_names)):
-                tk.Button(self.list_frame, width=19, text=wave, compound='top', borderwidth=0, command = lambda w_name=wave : __change_label(w_name)).pack()
+        self.list_frame = tk.Frame(root)
 
-            self.list_frame.place(x=unindent_x, y=unindent_y)
+        # * IMPORTANT
+        def __change_label(wave_name):
+            self.selected_wave = wave_name.strip()
+            self.t_label['text'] = self.selected_wave
+            self.__destroy_list()
+            self.drop_state = not self.drop_state
+
+            everything_from_list(focus_wave.return_list(self.selected_wave)) # !!!!!!!!!!!SDAKJNSKJDCNd
+
+
+
+        unindent_x =  self.dd_button.winfo_x() + self.pos_x - 179
+        unindent_y =  self.dd_button.winfo_y() + self.pos_y + 24
+        for i, wave in enumerate(__normalize_length(self.user_wave_names)):
+            tk.Button(self.list_frame, width=19, text=wave, compound='top', borderwidth=0, command = lambda w_name=wave : __change_label(w_name)).pack()
+
+        self.list_frame.place(x=unindent_x, y=unindent_y)
 
 class TextBox:
     def __init__(self, pos_x, pos_y, wdth, height):
@@ -306,67 +305,73 @@ class UIButton:
 
         self.button.place(x=self.position_x, y=self.position_y)
 
+# endregion
 
+# updates graph after user changes harmonics / clicks a wave button
 def update_graph(user_wave):
     main_graph = FigureCanvasTkAgg(grapher.create_graph_image(user_wave), root).get_tk_widget()
-    # main_graph = temp
-    # temp.destroy()
     main_graph.place(x=0, y=0)
 
-    return 1
+    # return 1
 
+# updates sliders, makes waveform, updates graph, plays waveform
 def everything_from_list(slider_list_ll):
     for i, val in enumerate(slider_list_ll):
-        slider_list[i].set_val( int(val * 100) )
-        ht.freqassignfunc(i+2, val)
+        slider_list[i].set_val( int(val * 100) ) # updates all sliders (stored in slider_list)
+        wv.freqassignfunc(i+2, val) # updates information to make actual waveform
     
-    focus_wave.audio_arr = ht.variabledef(focus_wave.freq)
+    focus_wave.audio_arr = wv.variabledef(focus_wave.freq) # makes waveform from sliders
     update_graph(focus_wave)
     play_audio(focus_wave.audio_arr)
 
 # bind events to sliders
 def HoverBind(widget, slider_no):
+    # frequencies are updated on mouse press / move
+    # but graph updated on mouse release for performance
 
+    # used to set frequencies OnMousePress
     def enter(event):
-        ht.freqassignfunc(slider_no, widget.get() / 100)
-        
+        wv.freqassignfunc(slider_no, widget.get() / 100)
+    
+    # used as OnMouseRelease
     def leave(event):
-        ht.freqassignfunc(slider_no, widget.get() / 100)
-        focus_wave.audio_arr = ht.variabledef(focus_wave.freq)
+        wv.freqassignfunc(slider_no, widget.get() / 100)
+        focus_wave.audio_arr = wv.variabledef(focus_wave.freq)
         update_graph(focus_wave)
 
     widget.bind('<B1-Motion>', enter)
     widget.bind('<1>', enter)
     widget.bind('<B2-Motion>', enter)
     widget.bind('<2>', enter)
-    widget.bind('<ButtonRelease-1>', leave)
-    widget.bind('<ButtonRelease-2>', leave)
+    widget.bind('<ButtonRelease-1>', leave) # left mouse release
+    widget.bind('<ButtonRelease-2>', leave) # right mouse release
 
-# make sliders
-def render_sliders():
+# creates a list of slider objects bound with event functions
+def create_n_render_sliders():
 
     Slider_List = [] # [1, 2, 3, 4, …]
 
     for i in range(19, -1, -1):
-        Slider_List.append(Vertical_Slider(WINDOW_WIDTH -118- (MyNewCuteConstant*i)  , WINDOW_HEIGHT - 270))
-        HarmonicsLabel( 21-i, WINDOW_WIDTH - 120 - (MyNewCuteConstant*i) , WINDOW_HEIGHT - 300)
+        Slider_List.append(Vertical_Slider(WINDOW_WIDTH -118- (PADDING*i)  , WINDOW_HEIGHT - 270))
+        HarmonicsLabel( 21-i, WINDOW_WIDTH - 120 - (PADDING*i) , WINDOW_HEIGHT - 300) # ik, looks weird but it's making and placing button in class definition
 
         HoverBind (Slider_List[19-i].Slide, 21-i)
     
     return Slider_List
 
-# update frequencies
+# set master frequency 
 def set_freq():
     if freq_box.return_text().strip() != '':
         freq = int(freq_box.return_text())
         focus_wave.freq = freq
-        focus_wave.audio_arr = ht.variabledef(focus_wave.freq)
+        focus_wave.audio_arr = wv.variabledef(focus_wave.freq)
 
         update_graph(focus_wave)
 
+# saves slider values
 def save_necessities():
     
-    focus_wave.save_audio(ht.return_sldr_list(), txtinp.return_text() if txtinp.return_text().strip() != '' else dd.selected_wave) #!?!?!?!?!?!?!??!?!?!?!!?!?!?!?!?!
+    focus_wave.save_audio(wv.return_sldr_list(), txtinp.return_text() if txtinp.return_text().strip() != '' else dd.selected_wave)
     txtinp.clear_text()
 
 if SYSTEM_OS == "Darwin":
@@ -389,7 +394,7 @@ if SYSTEM_OS == "Darwin":
     save_wav_btn = UIButton('Save as .wav', WINDOW_WIDTH - 160, WINDOW_HEIGHT - 600,
                             lambda: wav_saver.save_as_wav(focus_wave.audio_arr))
 
-    slider_list = render_sliders()
+    slider_list = create_n_render_sliders()
 
     txtbx1 = WaveButton('sawtooth', WINDOW_WIDTH - 580, WINDOW_HEIGHT - 750, focus_wave.freq)
 
@@ -404,7 +409,6 @@ if SYSTEM_OS == "Darwin":
     play_btn = UIButton('Play', WINDOW_WIDTH - 269, WINDOW_HEIGHT - 600, lambda: play_audio(focus_wave.audio_arr))
 
     update_graph(focus_wave)
-
 
 
 
@@ -428,7 +432,7 @@ elif SYSTEM_OS == "Linux":
     save_wav_btn = UIButton('Save as .wav', WINDOW_WIDTH - 160, WINDOW_HEIGHT - 600,
                             lambda: wav_saver.save_as_wav(focus_wave.audio_arr))
 
-    slider_list = render_sliders()
+    slider_list = create_n_render_sliders()
 
     txtbx1 = WaveButton('sawtooth', WINDOW_WIDTH - 580, WINDOW_HEIGHT - 750, focus_wave.freq)
 
@@ -459,7 +463,7 @@ elif SYSTEM_OS == "Windows":
     save_wav_btn = UIButton('Save as .wav', WINDOW_WIDTH - 160, WINDOW_HEIGHT - 600,
                         lambda: wav_saver.save_as_wav(focus_wave))
 
-    slider_list = render_sliders()
+    slider_list = create_n_render_sliders()
 
     txtbx1 = WaveButton('sawtooth', WINDOW_WIDTH - 580, WINDOW_HEIGHT - 750, focus_wave.freq)
 

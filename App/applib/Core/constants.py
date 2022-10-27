@@ -10,6 +10,7 @@ BUTTON_WIDTH = 12 if SYSTEM_OS == 'Windows' else 8
 # =====================
 
 SAMPLE_RATE = 44100
+TIME = 1
 
 FORMAT = 2
 CHUNK = 1024 * 4
@@ -46,10 +47,8 @@ OCTAVE_5_NOTES = {
 WINDOW_HEIGHT = 800
 WINDOW_WIDTH = 1400
 
-MyNewCuteConstant = 64
+PADDING = 64
 
-from ..utils import messenger
-#user_dict = messenger.get_user_settings()
 user_dict = {
     "bg-color": "#182839",
     "fg-color": "#123456",
@@ -59,9 +58,3 @@ user_dict = {
 BG_COLOR = user_dict["bg-color"]
 FG_COLOR = user_dict["fg-color"]
 LINE_COLOR = user_dict["line-color"]
-
-PINKISH_RED = '#ff8cad'
-MELLOW_YELLOW = '#ffff8c'
-PRETTY_PURPLE = '#c800ff'
-BRATTY_BLUE = '#2600ff'
-PLAIN_BLANC = '#ffffff'
