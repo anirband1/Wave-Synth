@@ -312,8 +312,6 @@ def update_graph(user_wave):
     main_graph = FigureCanvasTkAgg(grapher.create_graph_image(user_wave), root).get_tk_widget()
     main_graph.place(x=0, y=0)
 
-    # return 1
-
 # updates sliders, makes waveform, updates graph, plays waveform
 def everything_from_list(slider_list_ll):
     for i, val in enumerate(slider_list_ll):
